@@ -82,7 +82,14 @@ def transform(df: DataFrame) -> dict[str, DataFrame]:
 
 def load(partitions: dict[str, DataFrame], jdbc_url: str, pg_props: dict) -> None:
     """Insert each neighborhood dataset into its own PostgreSQL table."""
-    raise NotImplementedError
+    for neighborhood, neighborhood_df in partitions.items():
+        table_name = neighborhood.lower().replace(" ", "_")
+        neighborhood_df.write.jdbc(
+            url=jdbc_url,
+            table=table_name,
+            mode="overwrite",
+            properties=pg_props,
+        )
 
 
 # ── Main (do not modify) ───────────────────────────────────────────────────────
