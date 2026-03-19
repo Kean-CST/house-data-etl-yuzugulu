@@ -52,30 +52,35 @@ def transform(df: DataFrame) -> dict[str, DataFrame]:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     partitions: dict[str, DataFrame] = {}
+    columns = df.columns
 
     for hood in NEIGHBORHOODS:
-        hood_df = df.filter(F.col("neighborhood") == hood)
+        hood_df = df.filter(F.col("neighborhood") == hood).orderBy("house_id")
         partitions[hood] = hood_df
 
-        file_key = hood.lower().replace(" ", "_")
-        output_file = OUTPUT_DIR / f"{file_key}.csv"
-        temp_dir = OUTPUT_DIR / f"_{file_key}_tmp"
+        output_file = OUTPUT_FILES[hood]
+        rows = hood_df.collect()
 
-        (
-            hood_df.coalesce(1)
-            .write
-            .mode("overwrite")
-            .option("header", True)
-            .csv(str(temp_dir))
-        )
+        with output_file.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(columns)
 
-        part_files = list(temp_dir.glob("part-*.csv"))
-        if part_files:
-            output_file.write_text(part_files[0].read_text(encoding="utf-8"), encoding="utf-8")
+            for row in rows:
+                row_dict = row.asDict()
+                formatted_row: list[str] = []
 
-        for tmp_file in temp_dir.glob("*"):
-            tmp_file.unlink()
-        temp_dir.rmdir()
+                for col in columns:
+                    value = row_dict[col]
+                    if isinstance(value, bool):
+                        formatted_value = "True" if value else "False"
+                    elif hasattr(value, "isoformat"):
+                        formatted_value = value.isoformat()
+                    else:
+                        formatted_value = str(value)
+
+                    formatted_row.append(formatted_value)
+
+                writer.writerow(formatted_row)
 
     return partitions
 
