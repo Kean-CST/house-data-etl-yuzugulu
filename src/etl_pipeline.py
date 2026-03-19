@@ -49,6 +49,10 @@ def extract(spark: SparkSession, csv_path: str) -> DataFrame:
 
 def transform(df: DataFrame) -> dict[str, DataFrame]:
     """Split the data by neighborhood and save each as a separate CSV file."""
+    df = df.withColumn(
+        "sale_date",
+        F.date_format(F.to_date("sale_date", "M/d/yy"), "yyyy-MM-dd")
+    )
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     partitions: dict[str, DataFrame] = {}
