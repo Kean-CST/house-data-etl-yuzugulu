@@ -49,7 +49,35 @@ def extract(spark: SparkSession, csv_path: str) -> DataFrame:
 
 def transform(df: DataFrame) -> dict[str, DataFrame]:
     """Split the data by neighborhood and save each as a separate CSV file."""
-    raise NotImplementedError
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    partitions: dict[str, DataFrame] = {}
+
+    for hood in NEIGHBORHOODS:
+        hood_df = df.filter(F.col("neighborhood") == hood)
+        partitions[hood] = hood_df
+
+        file_key = hood.lower().replace(" ", "_")
+        output_file = OUTPUT_DIR / f"{file_key}.csv"
+        temp_dir = OUTPUT_DIR / f"_{file_key}_tmp"
+
+        (
+            hood_df.coalesce(1)
+            .write
+            .mode("overwrite")
+            .option("header", True)
+            .csv(str(temp_dir))
+        )
+
+        part_files = list(temp_dir.glob("part-*.csv"))
+        if part_files:
+            output_file.write_text(part_files[0].read_text(encoding="utf-8"), encoding="utf-8")
+
+        for tmp_file in temp_dir.glob("*"):
+            tmp_file.unlink()
+        temp_dir.rmdir()
+
+    return partitions
 
 
 def load(partitions: dict[str, DataFrame], jdbc_url: str, pg_props: dict) -> None:
