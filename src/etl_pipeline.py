@@ -43,7 +43,8 @@ PG_COLUMN_SCHEMA = (
 
 def extract(spark: SparkSession, csv_path: str) -> DataFrame:
     """Load the CSV dataset into a PySpark DataFrame with correct data types."""
-    raise NotImplementedError
+    df = spark.read.csv(csv_path, header=True, inferSchema=True)
+    return df
 
 
 def transform(df: DataFrame) -> dict[str, DataFrame]:
